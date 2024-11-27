@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /events/{eventId} {
+      // Allow read access to anyone
+      allow create, read, write, update, delete: if true;  
+      // Allow write access only to authenticated users
+      // allow write: if request.auth != null;  
+    }
+  }
+}
+

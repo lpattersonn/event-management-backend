@@ -21,7 +21,7 @@ Firebase CLI
 npm (Node Package Manager)
 Setup Instructions
 1. Clone the Repository
-git clone https://github.com/your-username/event-management-backend.git
+git clone https://github.com/lpattersonn/event-management-backend.git
 cd event-management-backend
 2. Install Dependencies
 Run the following command to install the necessary dependencies for Firebase functions:
