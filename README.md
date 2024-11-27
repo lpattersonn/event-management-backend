@@ -26,14 +26,17 @@ cd event-management-backend
 2. Install Dependencies
 Run the following command to install the necessary dependencies for Firebase functions:
 
-npm install
+```npm install```
+
 3. Firebase Project Setup
 You need to connect your local project to your Firebase project. If you don't have a Firebase project, create one.
 
 Once you've created your Firebase project, link it to your local project:
 
+```
 firebase login
 firebase init
+```
 During initialization, ensure that the following options are selected:
 
 ## Firebase Firestore
@@ -97,10 +100,7 @@ GET /events/filter: Filter events based on query parameters (e.g., date, locatio
 Folder Structure
 /event-management-backend
 ├── /functions          # Firebase Cloud Functions
-│   ├── index.js       # Main Firebase Functions file
-│   ├── eventController.js  # Event CRUD operations
-│   ├── eventModel.js   # Model for Firestore data
-├── /public             # Firebase hosting files (optional)
+│   ├── index.js        # Main Firebase Functions file
 ├── .env                # Environment variables file
 ├── firebase.json       # Firebase configuration
 └── package.json        # Node.js dependencies and scripts
