@@ -13,67 +13,60 @@ app.use(cors({ origin: true })); // Allow all domains to access the function
 
 // --- CREATE EVENT ---
 app.post('/createEvent', async (req, res) => {
-  if (req.method === "POST") {
-    const { title, description, date, location, organizer, eventType } = req.body;
+  const { title, description, date, location, organizer, eventType, requestId } = req.body;
 
-    // Validate required fields
-    if (!title || !description || !date || !location || !organizer || !eventType) {
-      return res.status(400).send("Missing required fields");
-    }
+  // Check for duplicate requestId or event details (title and date are most likely unique)
+  const existingEvent = await db.collection('events').where('requestId', '==', requestId).get();
+  if (!existingEvent.empty) {
+    return res.status(400).send({ message: "Duplicate request detected. The event has already been created." });
+  }
 
-    // Validate the date format
-    const parsedDate = new Date(date);
-    if (isNaN(parsedDate)) {
-      return res.status(400).send("Invalid date format. Please use a valid date (e.g. yyyy-mm-dd).");
-    }
+  // Additionally, check for a duplicate event with the same title and date
+  const duplicateEventCheck = await db.collection('events')
+    .where('title', '==', title)
+    .where('date', '==', admin.firestore.Timestamp.fromDate(new Date(date))) // Convert to Firestore timestamp
+    .get();
 
-    const newEvent = {
+  if (!duplicateEventCheck.empty) {
+    return res.status(400).send({ message: "An event with the same title and date already exists." });
+  }
+
+  // Proceed to create the event if no duplicates are found
+  const newEvent = {
+    title,
+    description,
+    date: admin.firestore.Timestamp.fromDate(new Date(date)), // Convert to Firestore timestamp
+    location,
+    organizer,
+    eventType,
+    requestId,  // Store the requestId to check for duplicates in the future
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),  // Server-side timestamp
+  };
+
+  try {
+    // Add the new event to Firestore
+    const docRef = await db.collection('events').add(newEvent);
+    const createdEventDoc = await docRef.get();
+    const createdEventData = createdEventDoc.data();
+
+    res.status(201).send({
+      id: docRef.id,
       title,
       description,
-      date: admin.firestore.Timestamp.fromDate(parsedDate),  // Convert the date to Firestore timestamp
+      date: new Date(date).toISOString(),  // Return the date as an ISO string
       location,
       organizer,
       eventType,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),  // Set as Firestore server timestamp
-    };
+      updatedAt: createdEventData?.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+    });
 
-    try {
-      // Log the incoming request data for debugging
-      console.log("Creating event with data:", newEvent);
-
-      // Add the new event to Firestore
-      const docRef = await db.collection("events").add(newEvent);
-
-      // After the document is created, fetch it to include the actual `updatedAt` field value
-      const createdEventDoc = await docRef.get();
-      const createdEventData = createdEventDoc.data();
-      
-      // Return the created event with the actual updatedAt and formatted date
-      res.status(201).send({
-        id: docRef.id,
-        title,
-        description,
-        date: parsedDate.toISOString(),  // Format date to ISO string
-        location,
-        organizer,
-        eventType,
-        updatedAt: createdEventData?.updatedAt?.toDate().toISOString() || new Date().toISOString(), // Use the Firestore server timestamp
-      });
-
-      // Optional: Log successful creation
-      console.log(`Event created with ID: ${docRef.id}`);
-    } catch (error) {
-      // Log the error for debugging
-      console.error("Error creating event:", error);
-
-      // Return a more detailed error response
-      res.status(500).send({
-        message: "Error creating event",
-        error: error.message,
-      });
-    }
-  } else {
-    res.status(405).send("Method not allowed");
+    console.log(`Event created with ID: ${docRef.id}`);
+  } catch (error) {
+    console.error("Error creating event:", error);
+    res.status(500).send({
+      message: "Error creating event",
+      error: error.message,
+    });
   }
 });
 
