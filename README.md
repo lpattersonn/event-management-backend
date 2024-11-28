@@ -97,13 +97,15 @@ POST /events: Create a new event.
 PUT /events/{id}: Update an event by ID.
 DELETE /events/{id}: Delete an event by ID.
 GET /events/filter: Filter events based on query parameters (e.g., date, location).
-Folder Structure
+## Folder Structure
+```
 /event-management-backend
 ├── /functions          # Firebase Cloud Functions
 │   ├── index.js        # Main Firebase Functions file
 ├── .env                # Environment variables file
 ├── firebase.json       # Firebase configuration
 └── package.json        # Node.js dependencies and scripts
+```
 Firebase Cloud Functions
 Firebase Cloud Functions are located in the functions directory. They are defined and exported in the index.js file. Each function handles a specific endpoint or operation (CRUD, filtering, etc.).
 
