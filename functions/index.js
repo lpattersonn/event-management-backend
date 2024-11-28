@@ -15,58 +15,57 @@ app.use(cors({ origin: true })); // Allow all domains to access the function
 app.post('/createEvent', async (req, res) => {
   const { title, description, date, location, organizer, eventType, requestId } = req.body;
 
-  // Check for duplicate requestId or event details (title and date are most likely unique)
-  const existingEvent = await db.collection('events').where('requestId', '==', requestId).get();
-  if (!existingEvent.empty) {
-    return res.status(400).send({ message: "Duplicate request detected. The event has already been created." });
+  // Validate required fields
+  if (!title || !description || !date || !location || !organizer || !eventType || !requestId) {
+    return res.status(400).send({ message: "Missing required fields in the request body." });
   }
-
-  // Additionally, check for a duplicate event with the same title and date
-  const duplicateEventCheck = await db.collection('events')
-    .where('title', '==', title)
-    .where('date', '==', admin.firestore.Timestamp.fromDate(new Date(date))) // Convert to Firestore timestamp
-    .get();
-
-  if (!duplicateEventCheck.empty) {
-    return res.status(400).send({ message: "An event with the same title and date already exists." });
-  }
-
-  // Proceed to create the event if no duplicates are found
-  const newEvent = {
-    title,
-    description,
-    date: admin.firestore.Timestamp.fromDate(new Date(date)), // Convert to Firestore timestamp
-    location,
-    organizer,
-    eventType,
-    requestId,  // Store the requestId to check for duplicates in the future
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),  // Server-side timestamp
-  };
 
   try {
-    // Add the new event to Firestore
-    const docRef = await db.collection('events').add(newEvent);
-    const createdEventDoc = await docRef.get();
-    const createdEventData = createdEventDoc.data();
+    // Parse and validate date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate)) {
+      return res.status(400).send({ message: "Invalid date format. Use ISO format (YYYY-MM-DD)." });
+    }
+    const firestoreTimestamp = admin.firestore.Timestamp.fromDate(parsedDate);
 
-    res.status(201).send({
-      id: docRef.id,
+    // Check for duplicate requestId
+    const existingEvent = await db.collection('events').where('requestId', '==', requestId).get();
+    if (!existingEvent.empty) {
+      return res.status(400).send({ message: "Duplicate request detected. The event has already been created." });
+    }
+
+    // Check for duplicate event (title and date)
+    const duplicateEventCheck = await db.collection('events')
+      .where('title', '==', title)
+      .where('date', '==', firestoreTimestamp)
+      .get();
+    if (!duplicateEventCheck.empty) {
+      return res.status(400).send({ message: "An event with the same title and date already exists." });
+    }
+
+    // Proceed to create the event
+    const newEvent = {
       title,
       description,
-      date: new Date(date).toISOString(),  // Return the date as an ISO string
+      date: firestoreTimestamp,
       location,
       organizer,
       eventType,
-      updatedAt: createdEventData?.updatedAt?.toDate().toISOString() || new Date().toISOString(),
-    });
+      requestId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
 
-    console.log(`Event created with ID: ${docRef.id}`);
+    const docRef = await db.collection('events').add(newEvent);
+    const createdEventDoc = await docRef.get();
+
+    res.status(201).send({
+      id: docRef.id,
+      ...newEvent,
+      updatedAt: createdEventDoc?.data()?.updatedAt?.toDate().toISOString(),
+    });
   } catch (error) {
     console.error("Error creating event:", error);
-    res.status(500).send({
-      message: "Error creating event",
-      error: error.message,
-    });
+    res.status(500).send({ message: "Error creating event", error: error.message });
   }
 });
 
